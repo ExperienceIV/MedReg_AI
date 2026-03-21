@@ -144,6 +144,7 @@ def render_page(result_html=""):
     <html lang="ru">
     <head>
         <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>Маршрутизация пациента</title>
 
         <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -151,11 +152,88 @@ def render_page(result_html=""):
         <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 
         <style>
+        html {{
+            overflow-x: hidden;
+        }}
+
+        body {{
+            overflow-x: hidden;
+        }}
+        @media (max-width: 768px) {{
+                .hero h1 {{
+                    word-break: break-word;
+                }}
+                .result h2 {{
+                    font-size: 20px;
+                    margin-top: 0;
+                }}
+                .container, .hero {{
+                    box-sizing: border-box;
+                }}
+                body {{
+                    background:
+                        linear-gradient(rgba(16, 36, 58, 0.62), rgba(16, 36, 58, 0.62)),
+                        url("/static/hospital_bg.jpg") center center / cover no-repeat;
+                }}
+
+                .hero {{
+                    margin: 12px 12px 12px 12px;
+                    padding: 18px 16px;
+                    border-radius: 18px;
+                }}
+
+                .hero h1 {{
+                    font-size: 24px;
+                    line-height: 1.2;
+                }}
+
+                .hero p {{
+                    font-size: 14px;
+                    line-height: 1.45;
+                }}
+
+                .container {{
+                    margin: 0 12px 16px 12px;
+                    padding: 18px 16px;
+                    border-radius: 18px;
+                }}
+
+                label {{
+                    font-size: 14px;
+                }}
+
+                input, textarea {{
+                    font-size: 16px;
+                    padding: 12px;
+                    border-radius: 10px;
+                }}
+
+                textarea {{
+                    min-height: 120px;
+                }}
+
+                button {{
+                    width: 100%;
+                    font-size: 16px;
+                    padding: 13px 16px;
+                    border-radius: 10px;
+                }}
+
+                .result, .warn {{
+                    padding: 14px;
+                    font-size: 14px;
+                }}
+
+                ul {{
+                    padding-left: 18px;
+                }}
+            }}
             body {{
                 font-family: 'IBM Plex Sans', Arial, sans-serif;
                 margin: 0;
                 padding: 0;
                 min-height: 100vh;
+                overflow-x: hidden;
                 background:
                     linear-gradient(rgba(16, 36, 58, 0.55), rgba(16, 36, 58, 0.55)),
                     url("/static/hospital_bg.jpg") center center / cover no-repeat fixed;
@@ -224,6 +302,7 @@ def render_page(result_html=""):
             }}
 
             button {{
+                width: 100%;
                 margin-top: 20px;
                 background: linear-gradient(135deg, #2d8cff, #1f6fd1);
                 color: white;
