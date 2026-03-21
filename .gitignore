@@ -18,6 +18,3 @@ cases.xlsx
 secret.key
 *.key
 *.xlsx
-
-*.pt
-*.pth
