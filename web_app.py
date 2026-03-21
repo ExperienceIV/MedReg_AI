@@ -161,25 +161,30 @@ def render_page(result_html=""):
         }}
         @media (max-width: 768px) {{
                 .hero h1 {{
-                    word-break: break-word;
+                    font-size: 26px;
+                    line-height: 1.15;
                 }}
-                .result h2 {{
-                    font-size: 20px;
-                    margin-top: 0;
+
+                .hero p {{
+                    font-size: 15px;
+                    line-height: 1.45;
                 }}
-                .container, .hero {{
-                    box-sizing: border-box;
+
+                label {{
+                    font-size: 15px;
                 }}
-                body {{
-                    background:
-                        linear-gradient(rgba(16, 36, 58, 0.62), rgba(16, 36, 58, 0.62)),
-                        url("/static/hospital_bg.jpg") center center / cover no-repeat;
+
+                .result, .warn {{
+                    padding: 14px;
+                    font-size: 15px;
                 }}
 
                 .hero {{
-                    margin: 12px 12px 12px 12px;
-                    padding: 18px 16px;
-                    border-radius: 18px;
+                    width: calc(100% - 16px);
+                    margin: 8px 8px 10px 8px;
+                    padding: 16px 14px;
+                    border-radius: 16px;
+                    box-sizing: border-box;
                 }}
 
                 .hero h1 {{
@@ -193,9 +198,11 @@ def render_page(result_html=""):
                 }}
 
                 .container {{
-                    margin: 0 12px 16px 12px;
-                    padding: 18px 16px;
-                    border-radius: 18px;
+                    width: calc(100% - 16px);
+                    margin: 0 8px 12px 8px;
+                    padding: 16px 14px;
+                    border-radius: 16px;
+                    box-sizing: border-box;
                 }}
 
                 label {{
@@ -204,7 +211,7 @@ def render_page(result_html=""):
 
                 input, textarea {{
                     font-size: 16px;
-                    padding: 12px;
+                    padding: 14px 12px;
                     border-radius: 10px;
                 }}
 
