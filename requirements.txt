@@ -1,0 +1,7 @@
+fastapi
+uvicorn[standard]
+numpy
+torch
+openpyxl
+cryptography
+pandas
