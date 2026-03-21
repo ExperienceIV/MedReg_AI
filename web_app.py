@@ -1,3 +1,4 @@
+import os
 import torch
 import numpy as np
 import pickle
@@ -67,10 +68,21 @@ model = DoctorNet(vocab_size, num_classes=len(specialists))
 model.load_state_dict(torch.load("doctor_model.pth", map_location=torch.device("cpu")))
 model.eval()
 
-logger = SecureExcelLogger(
-    excel_path="cases.xlsx",
-    key_path="secret.key"
-)
+logger = None
+APP_MODE = os.getenv("APP_MODE", "local")
+
+if APP_MODE == "local":
+    try:
+        logger = SecureExcelLogger(
+            excel_path="cases.xlsx",
+            key_path="secret.key"
+        )
+        print("✅ Защищённый логгер подключен")
+    except Exception as e:
+        print(f"⚠️ Ошибка инициализации логгера: {e}")
+        logger = None
+else:
+    print("ℹ️ Demo mode: логирование отключено")
 
 print("✅ Модель загружена")
 
@@ -300,8 +312,9 @@ def predict(fio: str = "", telegram: str = "web_user", complaint: str = ""):
 
     doctor, probs = predict_complaint(complaint)
 
-    row_idx = logger.create_case(fio, telegram)
-    logger.update_case(row_idx, complaint=complaint, doctor=doctor)
+    if logger is not None:
+        row_idx = logger.create_case(fio, telegram)
+        logger.update_case(row_idx, complaint=complaint, doctor=doctor)
 
     probs_html = ""
     if probs is not None:
