@@ -103,6 +103,19 @@ def predict_complaint(text):
             dental_idx = specialists.index("Стоматолог")
             fake_probs[0, dental_idx] = 10.0
             return "Стоматолог", torch.softmax(fake_probs, dim=1)
+        
+    surgery_keywords = [
+        "колено", "колени", "сустав", "суставы", "шея", "плечо", "плече", "локоть", "локте",
+        "спина", "поясница", "бедро", "бедре", "голень", "стопа", "стопе", "кисть", "запястье",
+        "палец", "пальце", "ушиб", "перелом", "вывих", "растяжение", "травма", "отек", "отёк"
+    ]
+
+    for keyword in surgery_keywords:
+        if keyword in text_lower:
+            fake_probs = torch.zeros(1, len(specialists))
+            surg_idx = specialists.index("Хирург")
+            fake_probs[0, surg_idx] = 10.0
+            return "Хирург", torch.softmax(fake_probs, dim=1)
 
     keyword_mapping = {
         "ЛОР": ["горло", "нос", "ухо", "отит", "синусит", "ринит", "миндалин", "гланд", "гортан"],
