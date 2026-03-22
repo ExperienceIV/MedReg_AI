@@ -6,7 +6,10 @@ from fastapi.staticfiles import StaticFiles
 from pathlib import Path
 from fastapi import FastAPI
 from fastapi.responses import HTMLResponse
-from secure_excel_logger import SecureExcelLogger
+try:
+    from secure_excel_logger import SecureExcelLogger
+except ImportError:
+    SecureExcelLogger = None
 
 app = FastAPI(title="Маршрутизация пациента")
 
@@ -71,7 +74,7 @@ model.eval()
 logger = None
 APP_MODE = os.getenv("APP_MODE", "local")
 
-if APP_MODE == "local":
+if APP_MODE == "local" and SecureExcelLogger is not None:
     try:
         logger = SecureExcelLogger(
             excel_path="cases.xlsx",
@@ -82,9 +85,7 @@ if APP_MODE == "local":
         print(f"⚠️ Ошибка инициализации логгера: {e}")
         logger = None
 else:
-    print("ℹ️ Demo mode: логирование отключено")
-
-print("✅ Модель загружена")
+    print("ℹ️ Demo mode или модуль логгера недоступен")
 
 
 def predict_complaint(text):
