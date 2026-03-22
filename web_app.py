@@ -377,13 +377,13 @@ def render_page(result_html=""):
         <div class="container">
             <form method="get" action="/predict">
                 <label>ФИО пациента</label>
-                <input type="text" name="fio" required>
+                <input type="text" name="fio" placeholder="Впишите сюда своё ФИО" required>
 
                 <label>Telegram / ID пациента</label>
-                <input type="text" name="telegram" value="web_user">
+                <input type="text" name="telegram" value="web_user" placeholder="Впишите свой ник в Telegram или ID">
 
                 <label>Жалоба / симптомы</label>
-                <textarea name="complaint" required></textarea>
+                <textarea name="complaint" placeholder="Подробно опишите свою жалобу" required></textarea>
 
                 <button type="submit">Определить специалиста</button>
             </form>
