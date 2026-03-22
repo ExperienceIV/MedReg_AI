@@ -18,3 +18,6 @@ cases.xlsx
 secret.key
 *.key
 *.xlsx
+
+decrypt_cases.py
+secure_excel_logger.py
