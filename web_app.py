@@ -186,169 +186,10 @@ def render_page(result_html=""):
         <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 
         <style>
-        html {{
-            overflow-x: hidden;
-        }}
-
-        body {{
-            overflow-x: hidden;
-        }}
-            .booking-block {{
-                margin-top: 22px;
-                padding: 18px;
-                background: rgba(248, 251, 255, 0.96);
-                border: 1px solid #d9e7f5;
-                border-radius: 14px;
+            html {{
+                overflow-x: hidden;
             }}
 
-            .booking-title {{
-                margin: 0 0 10px 0;
-                color: #183b56;
-                font-size: 22px;
-            }}
-
-            .booking-text {{
-                margin-bottom: 14px;
-                color: #486581;
-                line-height: 1.45;
-            }}
-
-            .doctor-buttons {{
-                display: flex;
-                flex-wrap: wrap;
-                gap: 10px;
-                margin-bottom: 16px;
-            }}
-
-            .doctor-choice {{
-                flex: 1 1 220px;
-                margin-top: 0;
-            }}
-
-            .slot-grid {{
-                display: flex;
-                flex-wrap: wrap;
-                gap: 10px;
-                margin-top: 12px;
-            }}
-
-            .slot-btn {{
-                background: #eef6ff;
-                color: #1f4e79;
-                border: 1px solid #cfe0f2;
-                padding: 10px 14px;
-                border-radius: 10px;
-                font-size: 15px;
-                font-weight: 600;
-            }}
-
-            .slot-btn:hover {{
-                background: #dcecff;
-            }}
-
-            .booking-actions {{
-                margin-top: 16px;
-            }}
-
-            .secondary-button {{
-                background: linear-gradient(135deg, #5b708b, #41566f);
-            }}
-
-            .secondary-button:hover {{
-                background: linear-gradient(135deg, #52667f, #394c62);
-            }}
-
-            @media (max-width: 768px) {{
-                .doctor-buttons {{
-                    flex-direction: column;
-                }}
-
-                .doctor-choice {{
-                    width: 100%;
-                }}
-
-                .slot-btn {{
-                    width: 100%;
-                    text-align: center;
-                }}
-
-}}
-        @media (max-width: 768px) {{
-                .hero h1 {{
-                    font-size: 26px;
-                    line-height: 1.15;
-                }}
-
-                .hero p {{
-                    font-size: 15px;
-                    line-height: 1.45;
-                }}
-
-                label {{
-                    font-size: 15px;
-                }}
-
-                .result, .warn {{
-                    padding: 14px;
-                    font-size: 15px;
-                }}
-
-                .hero {{
-                    width: calc(100% - 16px);
-                    margin: 8px 8px 10px 8px;
-                    padding: 16px 14px;
-                    border-radius: 16px;
-                    box-sizing: border-box;
-                }}
-
-                .hero h1 {{
-                    font-size: 24px;
-                    line-height: 1.2;
-                }}
-
-                .hero p {{
-                    font-size: 14px;
-                    line-height: 1.45;
-                }}
-
-                .container {{
-                    width: calc(100% - 16px);
-                    margin: 0 8px 12px 8px;
-                    padding: 16px 14px;
-                    border-radius: 16px;
-                    box-sizing: border-box;
-                }}
-
-                label {{
-                    font-size: 14px;
-                }}
-
-                input, textarea {{
-                    font-size: 16px;
-                    padding: 14px 12px;
-                    border-radius: 10px;
-                }}
-
-                textarea {{
-                    min-height: 120px;
-                }}
-
-                button {{
-                    width: 100%;
-                    font-size: 16px;
-                    padding: 13px 16px;
-                    border-radius: 10px;
-                }}
-
-                .result, .warn {{
-                    padding: 14px;
-                    font-size: 14px;
-                }}
-
-                ul {{
-                    padding-left: 18px;
-                }}
-            }}
             body {{
                 font-family: 'IBM Plex Sans', Arial, sans-serif;
                 margin: 0;
@@ -417,6 +258,12 @@ def render_page(result_html=""):
                 font-family: 'IBM Plex Sans', Arial, sans-serif;
             }}
 
+            input::placeholder,
+            textarea::placeholder {{
+                color: #9aa7b5;
+                opacity: 1;
+            }}
+
             textarea {{
                 min-height: 140px;
                 resize: vertical;
@@ -459,8 +306,136 @@ def render_page(result_html=""):
                 border-radius: 10px;
             }}
 
+            .booking-block {{
+                margin-top: 22px;
+                padding: 18px;
+                background: rgba(248, 251, 255, 0.96);
+                border: 1px solid #d9e7f5;
+                border-radius: 14px;
+            }}
+
+            .booking-title {{
+                margin: 0 0 10px 0;
+                color: #183b56;
+                font-size: 22px;
+            }}
+
+            .booking-text {{
+                margin-bottom: 14px;
+                color: #486581;
+                line-height: 1.45;
+            }}
+
+            .doctor-buttons {{
+                display: flex;
+                flex-wrap: wrap;
+                gap: 10px;
+                margin-bottom: 16px;
+            }}
+
+            .doctor-choice {{
+                flex: 1 1 220px;
+                margin-top: 0;
+            }}
+
+            .slot-grid {{
+                display: flex;
+                flex-wrap: wrap;
+                gap: 10px;
+                margin-top: 12px;
+            }}
+
+            .slot-btn {{
+                background: #eef6ff;
+                color: #1f4e79;
+                border: 1px solid #cfe0f2;
+                padding: 10px 14px;
+                border-radius: 10px;
+                font-size: 15px;
+                font-weight: 600;
+            }}
+
+            .slot-btn:hover {{
+                background: #dcecff;
+            }}
+
+            .booking-actions {{
+                margin-top: 16px;
+            }}
+
             ul {{
                 padding-left: 20px;
+            }}
+
+            @media (max-width: 768px) {{
+                .hero {{
+                    width: calc(100% - 16px);
+                    margin: 8px 8px 10px 8px;
+                    padding: 16px 14px;
+                    border-radius: 16px;
+                    box-sizing: border-box;
+                }}
+
+                .hero h1 {{
+                    font-size: 24px;
+                    line-height: 1.2;
+                }}
+
+                .hero p {{
+                    font-size: 14px;
+                    line-height: 1.45;
+                }}
+
+                .container {{
+                    width: calc(100% - 16px);
+                    margin: 0 8px 12px 8px;
+                    padding: 16px 14px;
+                    border-radius: 16px;
+                    box-sizing: border-box;
+                }}
+
+                label {{
+                    font-size: 14px;
+                }}
+
+                input, textarea {{
+                    font-size: 16px;
+                    padding: 14px 12px;
+                    border-radius: 10px;
+                }}
+
+                textarea {{
+                    min-height: 120px;
+                }}
+
+                button {{
+                    width: 100%;
+                    font-size: 16px;
+                    padding: 13px 16px;
+                    border-radius: 10px;
+                }}
+
+                .result, .warn {{
+                    padding: 14px;
+                    font-size: 14px;
+                }}
+
+                .doctor-buttons {{
+                    flex-direction: column;
+                }}
+
+                .doctor-choice {{
+                    width: 100%;
+                }}
+
+                .slot-btn {{
+                    width: 100%;
+                    text-align: center;
+                }}
+
+                ul {{
+                    padding-left: 18px;
+                }}
             }}
         </style>
     </head>
