@@ -107,7 +107,7 @@ def predict_complaint(text):
             return "Стоматолог", torch.softmax(fake_probs, dim=1)
         
     surgery_keywords = [
-        "колено", "колени", "колен", "сустав", "суставы", "шея", "плечо", "плече",
+        "колено", "колени", "колен", "коленк", "сустав", "суставы", "шея", "плечо", "плече",
         "локоть", "локте", "спина", "поясница", "бедро", "бедре", "голень",
         "стопа", "стопе", "кисть", "запястье", "палец", "пальце",
         "кость", "кости", "кост", "рука", "руке", "нога", "ноге",
@@ -247,7 +247,7 @@ def render_page(result_html=""):
                 color: #183b56;
             }}
 
-            input, textarea {{
+            input, textarea, select {{
                 width: 100%;
                 padding: 12px 14px;
                 border: 1px solid #d9e2ec;
@@ -398,7 +398,7 @@ def render_page(result_html=""):
                     font-size: 14px;
                 }}
 
-                input, textarea {{
+                input, textarea, select {{
                     font-size: 16px;
                     padding: 14px 12px;
                     border-radius: 10px;
@@ -521,16 +521,16 @@ def predict(fio: str = "", telegram: str = "web_user", complaint: str = ""):
         {probs_html}
 
         <div class="booking-actions">
-            <button type="button" onclick="document.getElementById('booking-block').scrollIntoView({{behavior: 'smooth'}})">
+            <button type="button" onclick="showBookingStep1()">
                 Записаться к врачу
             </button>
         </div>
     </div>
 
-    <div id="booking-block" class="booking-block">
-        <h2 class="booking-title">Предварительная запись</h2>
+    <div id="booking-step-1" class="booking-block" style="display:none;">
+        <h2 class="booking-title">Выбор специалиста</h2>
         <p class="booking-text">
-            Выберите специалиста для записи. Доступна запись либо к терапевту, либо к рекомендованному врачу.
+            Выберите врача для предварительной записи.
         </p>
 
         <div class="doctor-buttons">
@@ -541,33 +541,59 @@ def predict(fio: str = "", telegram: str = "web_user", complaint: str = ""):
                 {doctor}
             </button>
         </div>
+    </div>
 
-        <div id="therapist-booking" style="display:none;">
+    <div id="therapist-booking" class="booking-block" style="display:none;">
+        <h2 class="booking-title">Запись к терапевту</h2>
+        <form method="get" action="/book">
+            <input type="hidden" name="fio" value="{fio}">
+            <input type="hidden" name="telegram" value="{telegram}">
+            <input type="hidden" name="complaint" value="{complaint}">
+            <input type="hidden" name="doctor" value="Терапевт">
+
             <label>Дата записи к терапевту</label>
-            <input type="date" min="{today}">
-            <label>Доступное время</label>
-            <div class="slot-grid">
-                {therapist_slots_html}
-            </div>
-        </div>
+            <input type="date" name="visit_date" min="{today}" required>
 
-        <div id="recommended-booking" style="display:none;">
+            <label>Время записи</label>
+            <select name="visit_time" required>
+                <option value="">Выберите время</option>
+                {"".join([f'<option value="{slot}">{slot}</option>' for slot in therapist_slots])}
+            </select>
+
+            <button type="submit">Подтвердить запись к терапевту</button>
+        </form>
+    </div>
+
+    <div id="recommended-booking" class="booking-block" style="display:none;">
+        <h2 class="booking-title">Запись к врачу: {doctor}</h2>
+        <form method="get" action="/book">
+            <input type="hidden" name="fio" value="{fio}">
+            <input type="hidden" name="telegram" value="{telegram}">
+            <input type="hidden" name="complaint" value="{complaint}">
+            <input type="hidden" name="doctor" value="{doctor}">
+
             <label>Дата записи к врачу: {doctor}</label>
-            <input type="date" min="{today}">
-            <label>Доступное время</label>
-            <div class="slot-grid">
-                {recommended_slots_html}
-            </div>
-        </div>
+            <input type="date" name="visit_date" min="{today}" required>
+
+            <label>Время записи</label>
+            <select name="visit_time" required>
+                <option value="">Выберите время</option>
+                {"".join([f'<option value="{slot}">{slot}</option>' for slot in recommended_slots])}
+            </select>
+
+            <button type="submit">Подтвердить запись к врачу</button>
+        </form>
     </div>
 
     <script>
-        function showDoctorBooking(blockId) {{
-            const therapist = document.getElementById('therapist-booking');
-            const recommended = document.getElementById('recommended-booking');
+        function showBookingStep1() {{
+            document.getElementById('booking-step-1').style.display = 'block';
+            document.getElementById('booking-step-1').scrollIntoView({{behavior: 'smooth', block: 'start'}});
+        }}
 
-            therapist.style.display = 'none';
-            recommended.style.display = 'none';
+        function showDoctorBooking(blockId) {{
+            document.getElementById('therapist-booking').style.display = 'none';
+            document.getElementById('recommended-booking').style.display = 'none';
 
             document.getElementById(blockId).style.display = 'block';
             document.getElementById(blockId).scrollIntoView({{behavior: 'smooth', block: 'start'}});
