@@ -2,6 +2,7 @@ import os
 import torch
 import numpy as np
 import pickle
+from datetime import date
 from fastapi.staticfiles import StaticFiles
 from pathlib import Path
 from fastapi import FastAPI
@@ -156,6 +157,20 @@ def predict_complaint(text):
         print("Ошибка модели:", e)
         return "Терапевт", None
 
+def get_schedule_for_doctor(doctor):
+    schedule = {
+        "Терапевт": ["09:00", "10:00", "11:30", "13:00", "15:00", "17:00"],
+        "ЛОР": ["10:00", "11:30", "13:30", "15:30"],
+        "Пульмонолог": ["09:30", "11:00", "14:00", "16:00"],
+        "Кардиолог": ["09:00", "10:30", "12:30", "15:00"],
+        "Гастроэнтеролог": ["10:00", "12:00", "14:30", "16:30"],
+        "Невролог": ["09:30", "11:30", "13:30", "16:00"],
+        "Хирург": ["09:00", "11:00", "13:00", "15:00"],
+        "Дерматолог": ["10:00", "12:30", "14:30", "17:00"],
+        "Окулист": ["08:30", "10:00", "12:00", "15:30"],
+        "Стоматолог": ["09:00", "10:30", "12:30", "14:30"]
+    }
+    return schedule.get(doctor, ["10:00", "12:00", "14:00"])
 
 def render_page(result_html=""):
     return f"""
@@ -178,6 +193,86 @@ def render_page(result_html=""):
         body {{
             overflow-x: hidden;
         }}
+            .booking-block {{
+                margin-top: 22px;
+                padding: 18px;
+                background: rgba(248, 251, 255, 0.96);
+                border: 1px solid #d9e7f5;
+                border-radius: 14px;
+            }}
+
+            .booking-title {{
+                margin: 0 0 10px 0;
+                color: #183b56;
+                font-size: 22px;
+            }}
+
+            .booking-text {{
+                margin-bottom: 14px;
+                color: #486581;
+                line-height: 1.45;
+            }}
+
+            .doctor-buttons {{
+                display: flex;
+                flex-wrap: wrap;
+                gap: 10px;
+                margin-bottom: 16px;
+            }}
+
+            .doctor-choice {{
+                flex: 1 1 220px;
+                margin-top: 0;
+            }}
+
+            .slot-grid {{
+                display: flex;
+                flex-wrap: wrap;
+                gap: 10px;
+                margin-top: 12px;
+            }}
+
+            .slot-btn {{
+                background: #eef6ff;
+                color: #1f4e79;
+                border: 1px solid #cfe0f2;
+                padding: 10px 14px;
+                border-radius: 10px;
+                font-size: 15px;
+                font-weight: 600;
+            }}
+
+            .slot-btn:hover {{
+                background: #dcecff;
+            }}
+
+            .booking-actions {{
+                margin-top: 16px;
+            }}
+
+            .secondary-button {{
+                background: linear-gradient(135deg, #5b708b, #41566f);
+            }}
+
+            .secondary-button:hover {{
+                background: linear-gradient(135deg, #52667f, #394c62);
+            }}
+
+            @media (max-width: 768px) {{
+                .doctor-buttons {{
+                    flex-direction: column;
+                }}
+
+                .doctor-choice {{
+                    width: 100%;
+                }}
+
+                .slot-btn {{
+                    width: 100%;
+                    text-align: center;
+                }}
+
+}}
         @media (max-width: 768px) {{
                 .hero h1 {{
                     font-size: 26px;
@@ -381,7 +476,7 @@ def render_page(result_html=""):
                 <input type="text" name="fio" placeholder="Впишите сюда своё ФИО" required>
 
                 <label>Telegram / ID пациента</label>
-                <input type="text" name="telegram" value="web_user" placeholder="Впишите свой ник в Telegram или ID">
+                <input type="text" name="telegram" placeholder="Впишите свой ник в Telegram или ID">
 
                 <label>Жалоба / симптомы</label>
                 <textarea name="complaint" placeholder="Подробно опишите свою жалобу" required></textarea>
@@ -431,6 +526,17 @@ def predict(fio: str = "", telegram: str = "web_user", complaint: str = ""):
             probs_html += f"<li><b>{spec}</b>: {prob:.2%}</li>"
         probs_html += "</ul>"
 
+    today = date.today().isoformat()
+    recommended_slots = get_schedule_for_doctor(doctor)
+    therapist_slots = get_schedule_for_doctor("Терапевт")
+
+    recommended_slots_html = "".join(
+        [f'<button type="button" class="slot-btn">{slot}</button>' for slot in recommended_slots]
+    )
+    therapist_slots_html = "".join(
+        [f'<button type="button" class="slot-btn">{slot}</button>' for slot in therapist_slots]
+    )
+
     result_html = f"""
     <div class="result">
         <h2>Результат</h2>
@@ -438,7 +544,60 @@ def predict(fio: str = "", telegram: str = "web_user", complaint: str = ""):
         <p><b>Жалоба:</b> {complaint}</p>
         <p><b>Рекомендуемый специалист:</b> {doctor}</p>
         {probs_html}
+
+        <div class="booking-actions">
+            <button type="button" onclick="document.getElementById('booking-block').scrollIntoView({{behavior: 'smooth'}})">
+                Записаться к врачу
+            </button>
+        </div>
     </div>
+
+    <div id="booking-block" class="booking-block">
+        <h2 class="booking-title">Предварительная запись</h2>
+        <p class="booking-text">
+            Выберите специалиста для записи. Доступна запись либо к терапевту, либо к рекомендованному врачу.
+        </p>
+
+        <div class="doctor-buttons">
+            <button type="button" class="doctor-choice" onclick="showDoctorBooking('therapist-booking')">
+                Терапевт
+            </button>
+            <button type="button" class="doctor-choice" onclick="showDoctorBooking('recommended-booking')">
+                {doctor}
+            </button>
+        </div>
+
+        <div id="therapist-booking" style="display:none;">
+            <label>Дата записи к терапевту</label>
+            <input type="date" min="{today}">
+            <label>Доступное время</label>
+            <div class="slot-grid">
+                {therapist_slots_html}
+            </div>
+        </div>
+
+        <div id="recommended-booking" style="display:none;">
+            <label>Дата записи к врачу: {doctor}</label>
+            <input type="date" min="{today}">
+            <label>Доступное время</label>
+            <div class="slot-grid">
+                {recommended_slots_html}
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function showDoctorBooking(blockId) {{
+            const therapist = document.getElementById('therapist-booking');
+            const recommended = document.getElementById('recommended-booking');
+
+            therapist.style.display = 'none';
+            recommended.style.display = 'none';
+
+            document.getElementById(blockId).style.display = 'block';
+            document.getElementById(blockId).scrollIntoView({{behavior: 'smooth', block: 'start'}});
+        }}
+    </script>
     """
 
     return render_page(result_html)
