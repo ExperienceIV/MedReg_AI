@@ -1,12 +1,11 @@
 import os
 import torch
-import numpy as np
-import pickle
-from datetime import date
+from transformers import AutoTokenizer, AutoModelForSequenceClassification, pipeline
 from fastapi.staticfiles import StaticFiles
 from pathlib import Path
 from fastapi import FastAPI
 from fastapi.responses import HTMLResponse
+
 try:
     from secure_excel_logger import SecureExcelLogger
 except ImportError:
@@ -17,7 +16,18 @@ app = FastAPI(title="Маршрутизация пациента")
 BASE_DIR = Path(__file__).resolve().parent
 app.mount("/static", StaticFiles(directory=BASE_DIR / "static"), name="static")
 
-print("🤖 Загрузка модели...")
+print("Загрузка трансформера RuBioRoBERTa")
+
+tokenizer = AutoTokenizer.from_pretrained("tokenizer")
+model = AutoModelForSequenceClassification.from_pretrained("doctor_model")
+model.eval()
+
+classifier = pipeline(
+    "text-classification",
+    model=model,
+    tokenizer=tokenizer,
+    return_all_scores=True
+)
 
 with open("model_metadata.pkl", "rb") as f:
     metadata = pickle.load(f)
@@ -88,7 +98,6 @@ if APP_MODE == "local" and SecureExcelLogger is not None:
 else:
     print("ℹ️ Demo mode или модуль логгера недоступен")
 
-
 def predict_complaint(text):
     text_lower = text.lower()
 
@@ -98,14 +107,10 @@ def predict_complaint(text):
         "челюст", "прикус", "брекет", "ортодонт", "имплант",
         "флюс", "абсцесс", "пародонт", "гингивит", "стоматолог"
     ]
-
     for keyword in dental_keywords:
         if keyword in text_lower:
-            fake_probs = torch.zeros(1, len(specialists))
-            dental_idx = specialists.index("Стоматолог")
-            fake_probs[0, dental_idx] = 10.0
-            return "Стоматолог", torch.softmax(fake_probs, dim=1)
-        
+            return "Стоматолог", None
+
     surgery_keywords = [
         "колено", "колени", "колен", "коленк", "сустав", "суставы", "шея", "плечо", "плече",
         "локоть", "локте", "спина", "поясница", "бедро", "бедре", "голень",
@@ -113,13 +118,9 @@ def predict_complaint(text):
         "кость", "кости", "кост", "рука", "руке", "нога", "ноге",
         "ушиб", "перелом", "вывих", "растяжение", "травма", "отек", "отёк"
     ]
-
     for keyword in surgery_keywords:
         if keyword in text_lower:
-            fake_probs = torch.zeros(1, len(specialists))
-            surg_idx = specialists.index("Хирург")
-            fake_probs[0, surg_idx] = 10.0
-            return "Хирург", torch.softmax(fake_probs, dim=1)
+            return "Хирург", None
 
     keyword_mapping = {
         "ЛОР": ["горло", "нос", "ухо", "отит", "синусит", "ринит", "миндалин", "гланд", "гортан"],
@@ -127,32 +128,22 @@ def predict_complaint(text):
         "Кардиолог": ["сердц", "груд", "давлен", "пульс", "аритм", "гипертон", "стенокард", "инфаркт"],
         "Гастроэнтеролог": ["живот", "тошн", "рвот", "желудок", "кишечн", "изжог", "гастрит", "панкреат"],
         "Невролог": ["голов", "нерв", "онемен", "судорог", "мигрен", "головокруж", "парез", "инсульт"],
-        "Хирург": ["швы", "порез", "травм", "операц", "растян", "перелом", "ушиб", "рана", "рану", "шов", "швы", "колен", "коленк", "сустав", "шея", "плеч",
-    "локт", "спин", "поясниц", "бедр", "голен", "стоп", "кист", "запяст",
-    "палец", "пальц", "кость", "кости", "кост", "рук", "ног",
-    "грыж", "отек", "отёк", "опух", "удар", "паден"],
+        "Хирург": ["швы", "порез", "травм", "операц", "растян", "перелом", "ушиб", "рана", "рану", "шов", "швы", "колен", "коленк", "сустав", "шея", "плеч", "локт", "спин", "поясниц", "бедр", "голен", "стоп", "кист", "запяст", "палец", "пальц", "кость", "кости", "кост", "рук", "ног", "грыж", "отек", "отёк", "опух", "удар", "паден"],
         "Дерматолог": ["кож", "сып", "зуд", "покрасн", "шелуш", "акне", "экзем", "дермат", "прыщ"]
     }
 
     for doctor, keywords in keyword_mapping.items():
         for keyword in keywords:
             if keyword in text_lower:
-                fake_probs = torch.zeros(1, len(specialists))
-                doctor_idx = specialists.index(doctor)
-                fake_probs[0, doctor_idx] = 10.0
-                return doctor, torch.softmax(fake_probs, dim=1)
+                return doctor, None
 
+    # === НОВАЯ часть — трансформер 💕 ===
     try:
-        seq = tokenizer.texts_to_sequences([text])
-        padded = pad_sequences(seq, maxlen)
-        padded = torch.tensor(padded, dtype=torch.long)
-
-        with torch.no_grad():
-            logits = model(padded)
-            probs = torch.softmax(logits, dim=1)
-            predicted_class = torch.argmax(probs, dim=1).item()
-
-        return specialists[predicted_class], probs
+        result = classifier(text)[0]
+        scores = [item['score'] for item in result]
+        predicted_idx = torch.tensor(scores).argmax().item()
+        doctor = specialists[predicted_idx]
+        return doctor, torch.tensor(scores)
     except Exception as e:
         print("Ошибка модели:", e)
         return "Терапевт", None

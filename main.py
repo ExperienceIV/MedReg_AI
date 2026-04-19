@@ -1,172 +1,99 @@
 import torch
-import torch.nn as nn
-import torch.optim as optim
-from torch.utils.data import Dataset, DataLoader
-import pickle
+from transformers import AutoTokenizer, AutoModelForSequenceClassification, TrainingArguments, Trainer
+from datasets import Dataset
+import pandas as pd
+from dataset import load_dataset
 import os
 
-from tokenizer_utils import SimpleTokenizer, pad_sequences
-from dataset import load_dataset
-
-
-class ComplaintsDataset(Dataset):
-    def __init__(self, X, y):
-        self.X = X
-        self.y = y
-
-    def __len__(self):
-        return len(self.X)
-
-    def __getitem__(self, idx):
-        return self.X[idx], self.y[idx]
-
-
-class DoctorNet(nn.Module):
-    def __init__(self, vocab_size, num_classes, embed_dim=64, hidden_dim=128):
-        super().__init__()
-        self.embedding = nn.Embedding(vocab_size + 1, embed_dim)
-        self.lstm = nn.LSTM(embed_dim, hidden_dim, batch_first=True, bidirectional=True)
-        self.fc = nn.Linear(hidden_dim * 2, num_classes)
-
-    def forward(self, x):
-        emb = self.embedding(x)
-        lstm_out, _ = self.lstm(emb)
-        pooled = lstm_out.mean(dim=1)
-        out = self.fc(pooled)
-        return out
-
+#Специалисты
+specialists = [
+    "ЛОР", "Пульмонолог", "Кардиолог", "Гастроэнтеролог",
+    "Невролог", "Хирург", "Стоматолог", "Дерматолог", "Окулист"
+]
+label2id = {label: idx for idx, label in enumerate(specialists)}
+id2label = {idx: label for label, idx in label2id.items()}
 
 def train_and_save_model():
     print("Загрузка датасета...")
     df = load_dataset()
-    complaints = df["complaint"].tolist()
+    df = df[df["doctor"].isin(specialists)].copy()  # на всякий случай
+    df["label"] = df["doctor"].map(label2id)
 
-    specialists = [
-        "ЛОР",
-        "Пульмонолог",
-        "Кардиолог",
-        "Гастроэнтеролог",
-        "Невролог",
-        "Хирург",
-        "Стоматолог",
-        "Дерматолог",
-        "Окулист"
-    ]
-
-    doctor_to_label = {doctor: idx for idx, doctor in enumerate(specialists)}
-    labels = [doctor_to_label[doctor] for doctor in df["doctor"]]
-
-    print(f"Загружено {len(complaints)} жалоб")
-    print("Распределение по врачам:")
+    print(f"Загружено {len(df)} жалоб")
     print(df["doctor"].value_counts())
-    print()
 
-    tokenizer = SimpleTokenizer()
-    tokenizer.fit_on_texts(complaints)
-    print(f"Создан словарь из {len(tokenizer.word_index)} слов")
+    #Загружаем медицинскую RuBioRoBERTa
+    model_name = "alexyalunin/RuBioRoBERTa"
+    tokenizer = AutoTokenizer.from_pretrained(model_name)
+    model = AutoModelForSequenceClassification.from_pretrained(
+        model_name,
+        num_labels=len(specialists),
+        id2label=id2label,
+        label2id=label2id
+    )
 
-    with open("tokenizer.pkl", "wb") as f:
-        pickle.dump(tokenizer, f)
-    print("Токенизатор сохранен в tokenizer.pkl")
+    #Подготовка датасета
+    dataset = Dataset.from_pandas(df[["complaint", "label"]])
+    def tokenize_function(examples):
+        return tokenizer(examples["complaint"], truncation=True, max_length=128, padding="max_length")
+    
+    tokenized_dataset = dataset.map(tokenize_function, batched=True)
+    tokenized_dataset = tokenized_dataset.train_test_split(test_size=0.1)   # ← это обязательно должно быть
 
-    sequences = tokenizer.texts_to_sequences(complaints)
-    maxlen = 50
-    X = pad_sequences(sequences, maxlen)
-    X = torch.tensor(X, dtype=torch.long)
-    y = torch.tensor(labels, dtype=torch.long)
+    #Обучение
+    training_args = TrainingArguments(
+        output_dir="./results",
+        num_train_epochs=4,
+        per_device_train_batch_size=2,
+        per_device_eval_batch_size=2,
+        eval_strategy="epoch",
+        save_strategy="epoch",
+        load_best_model_at_end=True,
+        metric_for_best_model="accuracy",
+        report_to="none",
+        logging_dir="./logs",
+    )
 
-    dataset = ComplaintsDataset(X, y)
-    loader = DataLoader(dataset, batch_size=32, shuffle=True)
+    def compute_metrics(eval_pred):
+        predictions, labels = eval_pred
+        predictions = predictions.argmax(-1)
+        return {"accuracy": (predictions == labels).mean()}
 
-    model = DoctorNet(len(tokenizer.word_index), num_classes=len(specialists))
-    print(f"Создана модель с размером словаря: {len(tokenizer.word_index)}")
-    print("Количество специалистов:", len(specialists))
-    print("Максимальная метка:", max(labels))
-    print("Размер выходного слоя модели:", model.fc.out_features)
+    trainer = Trainer(
+        model=model,
+        args=training_args,
+        train_dataset=tokenized_dataset["train"],
+        eval_dataset=tokenized_dataset["test"],      # ← вот эта строчка должна быть!
+        compute_metrics=compute_metrics,
+    )
 
-    criterion = nn.CrossEntropyLoss()
-    optimizer = optim.Adam(model.parameters(), lr=0.001)
+    print("Начинаем обучение (это может занять пару минут)")
+    trainer.train()
 
-    print("\nНачало обучения...")
-    for epoch in range(10):
-        total_loss = 0
-        model.train()
+    #Сохраняем
+    model.save_pretrained("doctor_model")
+    tokenizer.save_pretrained("tokenizer")
+    print("Модель и токенайзер сохранены в doctor_model/ и tokenizer/")
 
-        for batch_X, batch_y in loader:
-            optimizer.zero_grad()
-            output = model(batch_X)
-            loss = criterion(output, batch_y)
-            loss.backward()
-            optimizer.step()
-            total_loss += loss.item()
-
-        if (epoch + 1) % 2 == 0:
-            print(f"Epoch {epoch+1}, Loss: {total_loss / len(loader):.4f}")
-
-    torch.save(model.state_dict(), "doctor_model.pth")
-    print("Модель сохранена в doctor_model.pth")
-
-    metadata = {
-        "maxlen": maxlen,
-        "specialists": specialists,
-        "vocab_size": len(tokenizer.word_index),
-        "word_index": tokenizer.word_index
-    }
-    with open("model_metadata.pkl", "wb") as f:
-        pickle.dump(metadata, f)
-    print("Метаданные сохранены в model_metadata.pkl")
-
-    model.eval()
-    print("\nТестирование модели на примерах:")
-
+    #Тест на примерах
+    print("\nТестируем модельку:")
     test_complaints = [
-        "боль в голове",
-        "кашель и температура",
-        "болит живот и тошнота",
-        "болит ухо горло нос",
-        "болит колено",
-        "частые головные боли",
-        "болит зуб",
-        "на коже сыпь",
-        "гнойные выделения из глаза"
+        "боль в голове", "кашель и температура", "болит живот и тошнота",
+        "болит ухо горло нос", "болит колено", "болит зуб", "на коже сыпь"
     ]
-
-    for complaint in test_complaints:
-        seq = tokenizer.texts_to_sequences([complaint])
-        padded = pad_sequences(seq, maxlen)
-        padded = torch.tensor(padded, dtype=torch.long)
-
+    for text in test_complaints:
+        inputs = tokenizer(text, return_tensors="pt", truncation=True, max_length=128)
         with torch.no_grad():
-            logits = model(padded)
-            probs = torch.softmax(logits, dim=1)
-            predicted_class = torch.argmax(probs, dim=1).item()
+            outputs = model(**inputs)
+            pred = outputs.logits.argmax(-1).item()
+        print(f"Жалоба: '{text}' → {id2label[pred]}")
 
-        doctor = specialists[predicted_class]
-        print(f"Жалоба: '{complaint}' -> Врач: {doctor}")
-
-    print("\n" + "=" * 50)
-    print("Модель успешно обучена и сохранена!")
-    print("Теперь можно запускать веб-приложение.")
-    print("=" * 50)
-
-    return model, tokenizer, maxlen, specialists
-
+    print("\nВсё готово. Теперь можно запускать веб-приложение")
 
 if __name__ == "__main__":
-    print("=" * 50)
-    print("Обучение модели для веб-приложения")
-    print("=" * 50)
-
-    files_needed = ["tokenizer.pkl", "doctor_model.pth", "model_metadata.pkl"]
-    files_exist = all(os.path.exists(f) for f in files_needed)
-
-    if files_exist:
-        print("Обнаружены сохраненные файлы модели.")
-        choice = input("Хотите заново обучить модель? (y/n): ")
-        if choice.lower() == "y":
-            train_and_save_model()
-        else:
+    if os.path.exists("doctor_model") and os.path.exists("tokenizer"):
+        choice = input("Модель уже есть. Переобучить? (y/n): ")
+        if choice.lower() != "y":
             print("Используем существующую модель.")
-    else:
-        print("Сохраненные файлы не найдены. Начинаем обучение...")
-        train_and_save_model()
+            exit()
+    train_and_save_model()
