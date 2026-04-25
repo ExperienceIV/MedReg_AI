@@ -63,7 +63,7 @@ def train_and_save_model():
         model=model,
         args=training_args,
         train_dataset=tokenized_dataset["train"],
-        eval_dataset=tokenized_dataset["test"],      # ← вот эта строчка должна быть!
+        eval_dataset=tokenized_dataset["test"],
         compute_metrics=compute_metrics,
     )
 
