@@ -38,7 +38,7 @@ def train_and_save_model():
         return tokenizer(examples["complaint"], truncation=True, max_length=128, padding="max_length")
     
     tokenized_dataset = dataset.map(tokenize_function, batched=True)
-    tokenized_dataset = tokenized_dataset.train_test_split(test_size=0.1)   # ← это обязательно должно быть
+    tokenized_dataset = tokenized_dataset.train_test_split(test_size=0.1)
 
     #Обучение
     training_args = TrainingArguments(
