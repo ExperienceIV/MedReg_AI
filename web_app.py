@@ -137,7 +137,6 @@ def predict_complaint(text):
             if keyword in text_lower:
                 return doctor, None
 
-    # === НОВАЯ часть — трансформер 💕 ===
     try:
         result = classifier(text)[0]
         scores = [item['score'] for item in result]
