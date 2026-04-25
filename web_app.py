@@ -1,10 +1,13 @@
 import os
 import torch
+import pickle
+import numpy as np
+from datetime import date
 from transformers import AutoTokenizer, AutoModelForSequenceClassification, pipeline
-from fastapi.staticfiles import StaticFiles
-from pathlib import Path
 from fastapi import FastAPI
 from fastapi.responses import HTMLResponse
+from fastapi.staticfiles import StaticFiles
+from pathlib import Path
 
 try:
     from secure_excel_logger import SecureExcelLogger
@@ -16,7 +19,7 @@ app = FastAPI(title="Маршрутизация пациента")
 BASE_DIR = Path(__file__).resolve().parent
 app.mount("/static", StaticFiles(directory=BASE_DIR / "static"), name="static")
 
-print("Загрузка трансформера RuBioRoBERTa")
+print("🚀 Загрузка RuBioRoBERTa...")
 
 tokenizer = AutoTokenizer.from_pretrained("tokenizer")
 model = AutoModelForSequenceClassification.from_pretrained("doctor_model")
@@ -29,122 +32,40 @@ classifier = pipeline(
     return_all_scores=True
 )
 
-with open("model_metadata.pkl", "rb") as f:
-    metadata = pickle.load(f)
-
-maxlen = metadata["maxlen"]
-specialists = metadata["specialists"]
-vocab_size = metadata["vocab_size"]
-word_index = metadata["word_index"]
-
-
-class SimpleTokenizer:
-    def __init__(self, word_index):
-        self.word_index = word_index
-
-    def texts_to_sequences(self, texts):
-        sequences = []
-        for text in texts:
-            seq = [self.word_index.get(word, 0) for word in text.lower().split()]
-            sequences.append(seq)
-        return sequences
-
-
-def pad_sequences(sequences, maxlen):
-    padded = []
-    for seq in sequences:
-        if len(seq) > maxlen:
-            seq = seq[:maxlen]
-        else:
-            seq = [0] * (maxlen - len(seq)) + seq
-        padded.append(seq)
-    return np.array(padded)
-
-
-class DoctorNet(torch.nn.Module):
-    def __init__(self, vocab_size, embed_dim=64, hidden_dim=128, num_classes=8):
-        super().__init__()
-        self.embedding = torch.nn.Embedding(vocab_size + 1, embed_dim)
-        self.lstm = torch.nn.LSTM(embed_dim, hidden_dim, batch_first=True, bidirectional=True)
-        self.fc = torch.nn.Linear(hidden_dim * 2, num_classes)
-
-    def forward(self, x):
-        emb = self.embedding(x)
-        lstm_out, _ = self.lstm(emb)
-        pooled = lstm_out.mean(dim=1)
-        out = self.fc(pooled)
-        return out
-
-
-tokenizer = SimpleTokenizer(word_index)
-
-model = DoctorNet(vocab_size, num_classes=len(specialists))
-model.load_state_dict(torch.load("doctor_model.pth", map_location=torch.device("cpu")))
-model.eval()
+try:
+    with open("model_metadata.pkl", "rb") as f:
+        metadata = pickle.load(f)
+    specialists = metadata.get("specialists", [
+        "ЛОР", "Пульмонолог", "Кардиолог", "Гастроэнтеролог",
+        "Невролог", "Хирург", "Стоматолог", "Дерматолог", "Окулист"
+    ])
+except:
+    specialists = ["ЛОР", "Пульмонолог", "Кардиолог", "Гастроэнтеролог",
+                   "Невролог", "Хирург", "Стоматолог", "Дерматолог", "Окулист"]
 
 logger = None
-APP_MODE = os.getenv("APP_MODE", "local")
-
-if APP_MODE == "local" and SecureExcelLogger is not None:
+if os.getenv("APP_MODE", "local") == "local" and SecureExcelLogger is not None:
     try:
-        logger = SecureExcelLogger(
-            excel_path="cases.xlsx",
-            key_path="secret.key"
-        )
-        print("✅ Защищённый логгер подключен")
-    except Exception as e:
-        print(f"⚠️ Ошибка инициализации логгера: {e}")
-        logger = None
-else:
-    print("ℹ️ Demo mode или модуль логгера недоступен")
+        logger = SecureExcelLogger("cases.xlsx", "secret.key")
+        print("✅ Логгер подключён")
+    except:
+        pass
 
 def predict_complaint(text):
+    # Быстрые ключевые слова
     text_lower = text.lower()
-
-    dental_keywords = [
-        "зуб", "зубы", "зубная", "зубной", "десн", "десна", "десны",
-        "кариес", "пульпит", "пломб", "коронк", "мост", "протез",
-        "челюст", "прикус", "брекет", "ортодонт", "имплант",
-        "флюс", "абсцесс", "пародонт", "гингивит", "стоматолог"
-    ]
-    for keyword in dental_keywords:
-        if keyword in text_lower:
-            return "Стоматолог", None
-
-    surgery_keywords = [
-        "колено", "колени", "колен", "коленк", "сустав", "суставы", "шея", "плечо", "плече",
-        "локоть", "локте", "спина", "поясница", "бедро", "бедре", "голень",
-        "стопа", "стопе", "кисть", "запястье", "палец", "пальце",
-        "кость", "кости", "кост", "рука", "руке", "нога", "ноге",
-        "ушиб", "перелом", "вывих", "растяжение", "травма", "отек", "отёк"
-    ]
-    for keyword in surgery_keywords:
-        if keyword in text_lower:
-            return "Хирург", None
-
-    keyword_mapping = {
-        "ЛОР": ["горло", "нос", "ухо", "отит", "синусит", "ринит", "миндалин", "гланд", "гортан"],
-        "Пульмонолог": ["кашель", "одышк", "дыхани", "бронх", "легк", "астм", "хрип", "мокрот"],
-        "Кардиолог": ["сердц", "груд", "давлен", "пульс", "аритм", "гипертон", "стенокард", "инфаркт"],
-        "Гастроэнтеролог": ["живот", "тошн", "рвот", "желудок", "кишечн", "изжог", "гастрит", "панкреат"],
-        "Невролог": ["голов", "нерв", "онемен", "судорог", "мигрен", "головокруж", "парез", "инсульт"],
-        "Хирург": ["швы", "порез", "травм", "операц", "растян", "перелом", "ушиб", "рана", "рану", "шов", "швы", "колен", "коленк", "сустав", "шея", "плеч", "локт", "спин", "поясниц", "бедр", "голен", "стоп", "кист", "запяст", "палец", "пальц", "кость", "кости", "кост", "рук", "ног", "грыж", "отек", "отёк", "опух", "удар", "паден"],
-        "Дерматолог": ["кож", "сып", "зуд", "покрасн", "шелуш", "акне", "экзем", "дермат", "прыщ"]
-    }
-
-    for doctor, keywords in keyword_mapping.items():
-        for keyword in keywords:
-            if keyword in text_lower:
-                return doctor, None
+    if any(w in text_lower for w in ["зуб", "зубы", "десн", "стоматолог"]):
+        return "Стоматолог", None
+    if any(w in text_lower for w in ["колено", "перелом", "ушиб", "травм", "сустав"]):
+        return "Хирург", None
 
     try:
         result = classifier(text)[0]
         scores = [item['score'] for item in result]
-        predicted_idx = torch.tensor(scores).argmax().item()
-        doctor = specialists[predicted_idx]
+        pred_idx = torch.tensor(scores).argmax().item()
+        doctor = specialists[pred_idx]
         return doctor, torch.tensor(scores)
-    except Exception as e:
-        print("Ошибка модели:", e)
+    except:
         return "Терапевт", None
 
 def get_schedule_for_doctor(doctor):
@@ -592,3 +513,7 @@ def predict(fio: str = "", telegram: str = "web_user", complaint: str = ""):
     """
 
     return render_page(result_html)
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=8000)
