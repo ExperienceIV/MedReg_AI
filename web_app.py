@@ -21,8 +21,17 @@ app.mount("/static", StaticFiles(directory=BASE_DIR / "static"), name="static")
 
 print("🚀 Загрузка RuBioRoBERTa...")
 
-tokenizer = AutoTokenizer.from_pretrained("tokenizer")
-model = AutoModelForSequenceClassification.from_pretrained("doctor_model")
+from huggingface_hub import snapshot_download
+
+print("🚀 Загрузка модели с Hugging Face...")
+
+model_path = snapshot_download(
+    repo_id="ExperienceIV/ai-medical-router",
+    repo_type="model"
+)
+
+tokenizer = AutoTokenizer.from_pretrained(model_path)
+model = AutoModelForSequenceClassification.from_pretrained(model_path)
 model.eval()
 
 classifier = pipeline(
