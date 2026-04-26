@@ -5,3 +5,8 @@ torch
 openpyxl
 cryptography
 pandas
+transformers
+datasets
+accelerate
+huggingface_hub
+safetensors
