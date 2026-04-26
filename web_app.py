@@ -19,27 +19,24 @@ app = FastAPI(title="Маршрутизация пациента")
 BASE_DIR = Path(__file__).resolve().parent
 app.mount("/static", StaticFiles(directory=BASE_DIR / "static"), name="static")
 
-print("🚀 Загрузка RuBioRoBERTa...")
+APP_MODE = os.getenv("APP_MODE", "demo")
+classifier = None
 
-from huggingface_hub import snapshot_download
+if APP_MODE == "production":
+    print("🚀 Production mode: загрузка локальной модели...")
 
-print("🚀 Загрузка модели с Hugging Face...")
+    tokenizer = AutoTokenizer.from_pretrained("tokenizer")
+    model = AutoModelForSequenceClassification.from_pretrained("doctor_model")
+    model.eval()
 
-model_path = snapshot_download(
-    repo_id="ExperienceIV/ai-medical-router",
-    repo_type="model"
-)
-
-tokenizer = AutoTokenizer.from_pretrained(model_path)
-model = AutoModelForSequenceClassification.from_pretrained(model_path)
-model.eval()
-
-classifier = pipeline(
-    "text-classification",
-    model=model,
-    tokenizer=tokenizer,
-    return_all_scores=True
-)
+    classifier = pipeline(
+        "text-classification",
+        model=model,
+        tokenizer=tokenizer,
+        return_all_scores=True
+    )
+else:
+    print("ℹ️ Demo mode: модель не загружается")
 
 try:
     with open("model_metadata.pkl", "rb") as f:
@@ -67,6 +64,20 @@ def predict_complaint(text):
         return "Стоматолог", None
     if any(w in text_lower for w in ["колено", "перелом", "ушиб", "травм", "сустав"]):
         return "Хирург", None
+    if any(w in text_lower for w in ["каш", "одыш", "бронх", "легк", "мокрот"]):
+        return "Пульмонолог", None
+    if any(w in text_lower for w in ["сердц", "груд", "давлен", "аритм", "пульс"]):
+        return "Кардиолог", None
+    if any(w in text_lower for w in ["ухо", "горло", "нос", "ангин", "насморк"]):
+        return "ЛОР", None
+    if any(w in text_lower for w in ["голов", "мигр", "онем", "нерв", "головокруж"]):
+        return "Невролог", None
+    if any(w in text_lower for w in ["живот", "тошн", "рвот", "изжог", "желуд"]):
+        return "Гастроэнтеролог", None
+    if any(w in text_lower for w in ["сып", "кож", "зуд", "пятн"]):
+        return "Дерматолог", None
+    if any(w in text_lower for w in ["глаз", "зрен", "веки"]):
+        return "Окулист", None
 
     try:
         result = classifier(text)[0]
